@@ -8,6 +8,7 @@
 > 2. 为了简单，请将 node1|2 上的 Iptables INPUT 策略设为 ACCEPT，同时安装Docker 
 >    我们测试版本为`1.12.1-1.el7`
 > 3. 一个可访问的 Etcd 集群（192.168.20.1:2379），Calico使用其进行数据存放和节点发现 
+> 4. 两个节点需要配置calicoctl，版本为`0.21.0-dev`
 
 
 ## etcd数据库的安装
@@ -18,10 +19,12 @@
    node1# yum install etcd
    ```
    
-   然后修改文件`/etc/etcd/etcd.conf` 文件
-
-   > ETCD_LISTEN_CLIENT_URLS="http://192.168.20.1:2379"
-   > ETCD_ADVERTISE_CLIENT_URLS="http://192.168.20.1:2379"
+   然后修改文件
+```
+  node1# vim /etc/etcd/etcd.conf
+```
+> ETCD_LISTEN_CLIENT_URLS="http://192.168.20.1:2379"
+> ETCD_ADVERTISE_CLIENT_URLS="http://192.168.20.1:2379"
 
   然后配置etcd自动启动，并且启动etcd服务
 
@@ -125,7 +128,7 @@
       vim /etc/systemd/system/docker.service.d/override.conf
 
 > [Service]
-> ExecStart=
+> ExecStart= 
 > ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock --cluster-store=etcd://192.168.20.1:2379
 
 
@@ -136,7 +139,7 @@
   然后需要重新启动docker服务才可以生效
 
   ```
-  node1|node2# systemctl restart docker.service、
+  node1|node2# systemctl restart docker.service
   ```
 ## 配置自动启动calico容器服务
 
@@ -153,9 +156,19 @@
 #### b)  Networking using Calico IPAM in a cloud environment
    For Calico IPAM in a cloud environment that doesn't enable direct container to container communication (DigitalOcean, GCE), you need to first create a Calico IP Pool using the calicoctl pool add command specifying the ipip and nat-outgoing options. Here we create a pool with CIDR 192.168.22.0/24
 
+```
+   calicoctl pool add 192.168.21.0/24 --nat-outgoing --ipip 
+```
+   支持跨子网的主机上的Docker间网络互通，需要添加--ipip参数；如果要Docker访问外网，需要添加--nat-outgoing参数。
 
-### 添加calico网络，以及制定子网 
+#### 查看已经添加网段
 
+   可以通过下面的命令已经创建的子网
+```
+   calicoctl pool show 
+```
+
+### 添加calico网络，以及制定子网，添加容器
     我们使用calico IPAM 驱动添加网络， 并且制定网络的子网。 例如我们添加一个子网，`192.168.22.0/24` 给web前端网络使用，步骤为
 
 - 创建calico ip pool
@@ -163,10 +176,136 @@
 - 创建docker容器并且制定ip地址
 
 ```
-calicoctl pool add 192.168.22.0/24
-docker network create --driver calico --ipam-driver calico --subnet=192.168.22.0/24 web
-docker run --net web --name grafana_web --ip 192.168.22.100 -tid grafana/grafana
+node1# calicoctl pool add 192.168.22.0/24
+node1# docker network create --driver calico --ipam-driver calico --subnet=192.168.22.0/24 web
+node1# docker run --net web --name container_1 --ip 192.168.22.1 -tid centos
 ```
 
-如果有IPAM 自动分配ip地址
-docker run --net web --name grafana_web -tid grafana/grafana
+   如果选择IPAM自动分配ip地址， 命令如下
+```
+node1# docker run --net web --name container -tid centos
+```
+   注意自动分配，容器停止/重新启动以后，ip地址会产生变化。
+
+### 查看已经创建的网络
+
+    创建calico的网络以后在`node1 | node2`两个节点上都可以查看的到，因为网络信息记录在`etcd`的数据库上， 可以通过下面的命令查询 
+
+```
+   node1 | node2# docker network ls 
+```
+
+    返回结果:
+>   NETWORK ID          NAME                DRIVER              SCOPE
+>   ...
+>   1cd9764f1051        web                 calico              global              
+>   ...
+
+
+### 在另外节点添加容器
+
+    同样在node2上面部署`container2`, 设置下`container_2`的IP为`192.168.22.2` 命令如下:
+```
+node2# docker run --net web --name  container_2 --ip 192.168.22.2 -tid centos
+```
+    然后我们就会发现 container_1| container_2 能够互相 ping 
+
+    ```
+	node1 # docker exec web_contianer_1 ping 192.168.22.1
+	node2 # docker exec web_contianer_1 ping 192.168.22.2
+    ```
+
+    两个容器能够互相ping通，所以我们认为他们网络是网络是通的
+
+### 路由的实现原理(参考http://h2ex.com/202，宜信云平台专家)
+
+    接下来让我们看一下在上面的 demo中，Calico 是如何让不在一个节点上的两个容器互相通讯的:
+    
+- Calico节点(docker agent)启动后会查询`Etcd`(中心数据库)，和其他 Calico节点使用BGP协议建立连接
+> node1 # netstat -anpt | grep 179
+> tcp	0      0	0.0.0.0:179             0.0.0.0:*               LISTEN      29535/bird
+> tcp   0      0	192.168.20.1:53646      192.168.20.2:179        ESTABLISHED 29535/bird
+
+- 容器启动的时候，calico作为docker网络驱动劫持dockerAPI对网络进行初始化
+- 如果没有指定 IP，则查询 Etcd 自动分配一个可用 IP
+- 创建一对veth接口用于容器和主机间通讯，设置好容器内的 IP 后，打开 IP 转发
+- 在主机路由表添加指向此接口的路由
+
+- docker主机内部路由表情况
+> 主机上
+> node1# ip link show
+> ...
+> 16: cali70ae6262396@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT qlen 1000
+>     link/ether 42:8d:73:32:f5:fe brd ff:ff:ff:ff:ff:ff link-netnsid 0
+> 容器内:
+> 
+> web_container_1# ip addr
+> ...
+> 15: cali0@if16: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+>    link/ether ee:ee:ee:ee:ee:ee brd ff:ff:ff:ff:ff:ff
+>    inet 192.168.22.2/32 scope global cali0
+>       valid_lft forever preferred_lft forever
+>    inet6 fe80::ecee:eeff:feee:eeee/64 scope link 
+>       valid_lft forever preferred_lft forever
+> 
+> node1# ip route
+> ...
+> 192.168.22.2 dev cali70ae6262396  scope link
+> ...
+
+  当主机收到目的地址为`192.168.22.2`数据包就会自动转发到接口`cali70ae6262396`, 由接口`cali70ae6262396`转发容器接口`cali0@if16`上.
+
+- docker主机之间通过BGP协议广播给其他所有节点，在两个节点上的路由表最终是这样的:
+
+> node1# ip route
+> ...
+> 192.168.22.0/26 via 192.168.20.2 dev enp2s0  proto bird 
+> 192.168.22.1 dev cali70ae6262396  scope link
+> blackhole 192.168.22.64/26  proto bird
+>
+> node2# ip route
+> 192.168.22.2 dev calie3b73c467e1  scope link 
+> 192.168.22.1 via 192.168.20.1 dev enp2s0  proto bird 
+> 192.168.22.64/26 via 192.168.20.9 dev enp2s0  proto bird 
+  
+### 配置网络的访问规则
+
+    上文通过命令`docker network create --driver calico --ipam-driver calico --subnet=192.168.22.0/24 web`, 创建`web`网络的同时， calico自动创建对应的网络规则，把规则规则命名为`web`的NETWORK ID
+
+    列举profile命令
+```
+	node1|node2 # calicoctl profile  show
+```
+> +------------------------------------------------------------------+
+> |                               Name                               |
+> +------------------------------------------------------------------+
+> | 1cd9764f10510862a4244f9d675cd4c8a73d147136bf13eacdfc188d06fc0e05 |
+> +------------------------------------------------------------------+
+
+  列举网络命令
+```
+   node1 | node2# docker network ls
+```
+
+    返回结果:
+>   NETWORK ID          NAME                DRIVER              SCOPE
+>   ...
+>   1cd9764f1051        web                 calico              global
+>   ...
+
+   虽然profile是使用NETWORK ID进行命名，但是我们依然可以使用网络名字对策略进行查询，默认情况网络规则如下
+
+```
+	node1 | node2# calicoctl profile web rule show
+```
+
+> Inbound rules:
+>    1 allow from tag web
+> Outbound rules:
+>    1 allow
+   
+   规则意思`web`网络container允许接收来自`web`的cantainer发送过来的网络包, 允许向所有网络发送数据, 包括向container主机发送网络包。
+
+#### 修改网络规则
+
+   例如同时创建`web`和`database`两网络，在默认的情况下，两个网络container是不允许互相访问，需要修改profle.
