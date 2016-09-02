@@ -41,7 +41,8 @@
 ### 配置docker 安装源
 
    vim  /etc/yum.repos.d/docker.repo
-> [dockerrepo]
+> \[dockerrepo\]
+>
 > name=Docker Repository
 > baseurl=https://yum.dockerproject.org/repo/main/centos/$releasever/
 > enabled=1
@@ -59,16 +60,19 @@
    vim /usr/lib/systemd/system/docker.socket
 
 > \[Unit\]
+>
 > Description=Docker Socket for the API
 > PartOf=docker.service
 
 > \[Socket\]
+>
 > ListenStream=/var/run/docker.sock
 > SocketMode=0660
 > SocketUser=root
 > SocketGroup=docker
 
 > \[Install\]
+>
 > WantedBy=sockets.target
 
   通知系统重新加载服务
@@ -91,7 +95,7 @@
  
 ## 安装calico环境
 
-   calico 环境必须安装在所以的docker机器上面，calico环境包含calicoctl， 以及calico/node 和 
+   calico 环境必须安装在所以的docker机器上面，calico环境包含calicoctl， 以及calico-node 和 
    libnetweork两个容器。
 
 ### 下载calicoctl.
@@ -128,6 +132,7 @@
 ## 修改docker 启动参数支持calico
   vim /etc/systemd/system/docker.service.d/override.conf
 > \[Service\]
+>
 > ExecStart= 
 > ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock --cluster-store=etcd://192.168.20.1:2379
 
@@ -146,29 +151,33 @@ node1|node2# systemctl restart docker.service
 
    创建服务文件`/usr/lib/systemd/system/calico-node.service`,内容为:
 > \[Unit\]
+>
 > Description=calico-node
 > Requires=docker.service
 > After=docker.service
-
+>
 > \[Service\]
 > Restart=always
 > ExecStart=/usr/bin/docker start -a calico-node
 > ExecStop=/usr/bin/docker stop -t 2 calico-node
-
+>
 > \[Install\]
+>
 > WantedBy=multi-user.target
 
   创建服务文件`/usr/lib/systemd/system/calico-libnetwork.service`
 > \[Unit\]
+>
 > Description=calico-libnetwork
 > Requires=docker.service calico-node.service
 > After=docker.service calico-node.service
-
+>
 > \[Service\]
+>
 > Restart=always
 > ExecStart=/usr/bin/docker start -a calico-libnetwork
 > ExecStop=/usr/bin/docker stop -t 2 calico-libnetwork
-
+>
 > \[Install\]
 > WantedBy=multi-user.target
 
