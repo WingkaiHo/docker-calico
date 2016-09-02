@@ -58,17 +58,17 @@
    docker1.12.1-1.el7在centos7.2 可能会无法启动， 通过配置文件修正
    vim /usr/lib/systemd/system/docker.socket
 
-> [Unit]
+> \[Unit\]
 > Description=Docker Socket for the API
 > PartOf=docker.service
 
-> [Socket]
+> \[Socket\]
 > ListenStream=/var/run/docker.sock
 > SocketMode=0660
 > SocketUser=root
 > SocketGroup=docker
 
-> [Install]
+> \[Install\]
 > WantedBy=sockets.target
 
   通知系统重新加载服务
@@ -127,7 +127,7 @@
 
 ## 修改docker 启动参数支持calico
   vim /etc/systemd/system/docker.service.d/override.conf
-> [Service]
+> \[Service\]
 > ExecStart= 
 > ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock --cluster-store=etcd://192.168.20.1:2379
 
@@ -145,31 +145,31 @@ node1|node2# systemctl restart docker.service
    Calico 服务container有两个， 分别是calico-node和calico-libnetwork, 都需要配置随系统自动启动
 
    创建服务文件`/usr/lib/systemd/system/calico-node.service`,内容为:
-> [Unit]
+> \[Unit\]
 > Description=calico-node
 > Requires=docker.service
 > After=docker.service
 
-> [Service]
+> \[Service\]
 > Restart=always
 > ExecStart=/usr/bin/docker start -a calico-node
 > ExecStop=/usr/bin/docker stop -t 2 calico-node
 
-> [Install]
+> \[Install\]
 > WantedBy=multi-user.target
 
   创建服务文件`/usr/lib/systemd/system/calico-libnetwork.service`
-> [Unit]
+> \[Unit\]
 > Description=calico-libnetwork
 > Requires=docker.service calico-node.service
 > After=docker.service calico-node.service
 
-> [Service]
+> \[Service\]
 > Restart=always
 > ExecStart=/usr/bin/docker start -a calico-libnetwork
 > ExecStop=/usr/bin/docker stop -t 2 calico-libnetwork
 
-> [Install]
+> \[Install\]
 > WantedBy=multi-user.target
 
 
@@ -343,123 +343,6 @@ node1# docker run --net web --name container -tid centos
 ```
    注意自动分配，容器停止/重新启动以后，ip地址会产生变化。
 
-### 查看已经创建的网络
-
-    创建calico的网络以后在`node1 | node2`两个节点上都可以查看的到，因为网络信息记录在`etcd`的数据库上， 可以通过下面的命令查询 
-
-```
-node1|node2# docker network ls 
-```
-
-返回结果:
-> NETWORK ID          NAME                DRIVER              SCOPE
-> ...
-> 1cd9764f1051        web                 calico              global              
-> ...
-
-
-### 在另外节点添加容器
-
-    同样在node2上面部署`container2`, 设置下`container_2`的IP为`192.168.22.2` 命令如下:
-```
-node2# docker run --net web --name  container_2 --ip 192.168.22.2 -tid centos
-```
-   然后我们就会发现 container_1| container_2 能够互相 ping 
-
-```
-node1 # docker exec web_contianer_1 ping 192.168.22.1
-node2 # docker exec web_contianer_1 ping 192.168.22.2
-```
-
-
-### 路由的实现原理(参考http://h2ex.com/202，宜信云平台专家)
-
-    接下来让我们看一下在上面的 demo中，Calico 是如何让不在一个节点上的两个容器互相通讯的:
-    
-- Calico节点(docker agent)启动后会查询`Etcd`(中心数据库)，和其他 Calico节点使用BGP协议建立连接
-> node1 # netstat -anpt | grep 179
-> tcp	0      0	0.0.0.0:179             0.0.0.0:*               LISTEN      29535/bird
-> tcp   0      0	192.168.20.1:53646      192.168.20.2:179        ESTABLISHED 29535/bird
-
-- 容器启动的时候，calico作为docker网络驱动劫持dockerAPI对网络进行初始化
-- 如果没有指定 IP，则查询 Etcd 自动分配一个可用 IP
-- 创建一对veth接口用于容器和主机间通讯，设置好容器内的 IP 后，打开 IP 转发
-- 在主机路由表添加指向此接口的路由
-
-- docker主机内部路由表情况
-> 主机上
-> node1# ip link show
-> ...
-> 16: cali70ae6262396@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT qlen 1000
->     link/ether 42:8d:73:32:f5:fe brd ff:ff:ff:ff:ff:ff link-netnsid 0
-> 容器内:
-> 
-> web_container_1# ip addr
-> ...
-> 15: cali0@if16: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc pfifo_fast state UP qlen 1000
->    link/ether ee:ee:ee:ee:ee:ee brd ff:ff:ff:ff:ff:ff
->    inet 192.168.22.2/32 scope global cali0
->       valid_lft forever preferred_lft forever
->    inet6 fe80::ecee:eeff:feee:eeee/64 scope link 
->       valid_lft forever preferred_lft forever
-> 
-> node1# ip route
-> ...
-> 192.168.22.2 dev cali70ae6262396  scope link
-> ...
-
-  当主机收到目的地址为`192.168.22.2`数据包就会自动转发到接口`cali70ae6262396`, 由接口`cali70ae6262396`转发容器接口`cali0@if16`上.
-
-- docker主机之间通过BGP协议广播给其他所有节点，在两个节点上的路由表最终是这样的:
-
-> node1# ip route
-> ...
-> 192.168.22.0/26 via 192.168.20.2 dev enp2s0  proto bird 
-> 192.168.22.1 dev cali70ae6262396  scope link
-> blackhole 192.168.22.64/26  proto bird
->
-> node2# ip route
-> 192.168.22.2 dev calie3b73c467e1  scope link 
-> 192.168.22.1 via 192.168.20.1 dev enp2s0  proto bird 
-> 192.168.22.64/26 via 192.168.20.9 dev enp2s0  proto bird 
-  
-### 配置网络的访问规则
-
-    上文通过命令`docker network create --driver calico --ipam-driver calico --subnet=192.168.22.0/24 web`, 创建`web`网络的同时， calico自动创建对应的网络规则，把规则规则命名为`web`的NETWORK ID
-
-    列举profile命令
-```
-	node1|node2 # calicoctl profile  show
-```
-> +------------------------------------------------------------------+
-> |                               Name                               |
-> +------------------------------------------------------------------+
-> | 1cd9764f10510862a4244f9d675cd4c8a73d147136bf13eacdfc188d06fc0e05 |
-> +------------------------------------------------------------------+
-
-  列举网络命令
-```
-   node1 | node2# docker network ls
-```
-
-    返回结果:
->   NETWORK ID          NAME                DRIVER              SCOPE
->   ...
->   1cd9764f1051        web                 calico              global
->   ...
-
-   虽然profile是使用NETWORK ID进行命名，但是我们依然可以使用网络名字对策略进行查询，默认情况网络规则如下
-
-```
-	node1 | node2# calicoctl profile web rule show
-```
-
-> Inbound rules:
->    1 allow from tag web
-> Outbound rules:
->    1 allow
-   
-   规则意思`web`网络container允许接收来自`web`的cantainer发送过来的网络包, 允许向所有网络发送数据, 包括向container主机发送网络包。
 
 #### 修改网络规则
 
