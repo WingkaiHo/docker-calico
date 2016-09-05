@@ -377,6 +377,103 @@ node1# docker run --net web --name container -tid centos
    注意自动分配，容器停止/重新启动以后，ip地址会产生变化。
 
 
-#### 修改网络规则
+## 利用 Profile 实现 ACL
 
-   例如同时创建`web`和`database`两网络，在默认的情况下，两个网络container是不允许互相访问，需要修改profle.
+   例如同时创建`web`和`mysqldb`两网络，在默认的情况下，两个网络container是不允许互相访问，需要修改profle. 
+
+   我们需要创建一个docker image 带有nc`网络瑞士军刀`， 进行实验。 Dockerfile 如下
+```
+FROM centos
+MAINTAINER hyj
+ENV LANG en_US.UTF-8
+
+RUN yum install -y nc telnet
+```
+
+创建对应的的docker镜像,镜像需要在每个node的节点上创建
+
+```
+  node1 | node2 docker build -t calico-net-test:1.0 ./
+```
+
+  通过项目复杂例子说明怎么配置Profile 实现 ACL
+  在常见的网站架构中，一般是前端 WebServer 将请求反向代理给后端的 APP 服务，服务调用后端的 DB：
+```
+web -> app -> mysqldb
+```
+所以我们要实现：
+
+    web: 暴露 80 和 443 端口
+    app: 允许 web 访问
+    mysqldb: 允许 app访问 3306 端口
+    除此之外，禁止所有跨服务访问
+
+### 创建三个网络
+
+   首先通过docker创建web， app， mysqldb, 三个网络, 并且指定三个网络子网(不指定也可以), 命令只需要在
+node1或node2其中一台节点执行就可以，目前在node1执行
+
+```
+node1# docker network create --driver calico --ipam-driver calico --subnet=192.168.22.0/24 web
+node1# docker network create --driver calico --ipam-driver calico --subnet=192.168.23.0/24 mysqldb
+node1# docker network create --driver calico --ipam-driver calico --subnet=192.168.24.0/24 app
+```
+   创建成功后可以通过查询是三个网络是否存在,node1或者node2执行返回结果都是一样的:
+```
+node1|node2# docker network ls
+NETWORK ID          NAME                DRIVER              SCOPE
+...
+ad15bb272ea5        app                 calico              global              
+e87bb4ef80aa        mysqldb             calico              global              
+1cd9764f1051        web                 calico              global              
+...
+
+所有calico 驱动创建的网络SCOPE都是global
+
+```
+
+### 配置网络的访问权限
+
+- 1. 配置web网络允许外部网络对80, 443端口的访问。需要通过calicoctl对web进行配置，在node1|node2都可以执行
+
+```
+node1# calicoctl profile web rule add inbound allow tcp to ports 80,443
+node1# calicoctl profile web rule show
+
+Inbound rules:
+   1 allow from tag web
+   2 allow tcp to ports 80,443
+Outbound rules:
+   1 allow
+``` 
+
+-- 1) 测试效果通过host直接访问容器测试，首先使用host对容器进行访问.
+
+   在node1创建容器名字为:web_container_1, 使用web网络，配置ip地址为192.168.22.1
+
+```
+node1# docker run --net web --name web_container_1 --ip 192.168.22.21 -td calico-net-test:1.0
+```
+  
+  在node1机器通过进入容器通过nc打开80端口
+
+```
+node1# docker-enter web_container_1
+web_container_1# nc -l 80
+``` 
+
+  在node2机器连接容器的`web_container_1`的80端口
+
+```
+node2# nc 192.168.22.21 80 
+
+然后输入
+i am node2 
+```  
+
+   在`web_container_1`可以接收到数据， 同样在`web_container_1`打开443端口， node2还是可以连接上去。
+但是在`web_container_1`打开80, 443以外端口，都无法连接上去。
+  
+-- 2)然后使用mysqldb， app网络的容器访问，profile配置所以
+网络都可以访问web的80,443端口.
+
