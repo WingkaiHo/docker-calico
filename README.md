@@ -434,7 +434,7 @@ e87bb4ef80aa        mysqldb             calico              global
 
 ### 配置网络的访问权限
 
-- 1. 配置web网络允许外部网络对80, 443端口的访问。需要通过calicoctl对web进行配置，在node1|node2都可以执行
+- 1. 配置web网络允许外部网络对80, 443端口的访问。需要通过calicoctl对web进行配置，在node1或node2都可以执行
 
 ```
 node1# calicoctl profile web rule add inbound allow tcp to ports 80,443
@@ -452,7 +452,7 @@ Outbound rules:
    在node1创建容器名字为:web_container_1, 使用web网络，配置ip地址为192.168.22.1
 
 ```
-node1# docker run --net web --name web_container_1 --ip 192.168.22.21 -td calico-net-test:1.0
+node1# docker run --net web --name web_container_1 --ip 192.168.22.1 -td calico-net-test:1.0
 ```
   
   在node1机器通过进入容器通过nc打开80端口
@@ -465,15 +465,126 @@ web_container_1# nc -l 80
   在node2机器连接容器的`web_container_1`的80端口
 
 ```
-node2# nc 192.168.22.21 80 
+node2# nc 192.168.22.1 80 
 
-然后输入
-i am node2 
+可以通过命令行互相发送和接受数据
 ```  
 
    在`web_container_1`可以接收到数据， 同样在`web_container_1`打开443端口， node2还是可以连接上去。
 但是在`web_container_1`打开80, 443以外端口，都无法连接上去。
   
--- 2)然后使用mysqldb， app网络的容器访问，profile配置所以
-网络都可以访问web的80,443端口.
+-- 2) 然后使用mysqldb， app网络的容器访问，profile配置所以网络都可以访问web的80,443端口,但是测试其他
+端口都服务访问。
+
+-- 3) 同样可以通过json对web进行更新
+
+   在node1或node2都可以执行更新， 以node1为例
+```
+node1# cat web-rule.json
+{
+  "inbound_rules": [
+    {
+      "action": "allow", 
+      "src_tag": "web"
+    }, 
+    {
+      "action": "allow", 
+      "protocol": "tcp", 
+      "dst_ports": [
+        80, 
+        443
+      ]
+    }
+  ], 
+  "outbound_rules": [
+    {
+      "action": "allow"
+    }
+  ]
+}
+
+node1# calicoctl profile web rule update < web-rule.json
+```
+
+- 2. 配置`app`网络，只允许`web`网络访问所以的端口，其他网络都不允许访问。需要通过`calicoctl`对`app`网络进行配置，
+     在node1或node2都可以执行.
+
+```
+node1# calicoctl profile app add inbound allow from tag web
+```
+
+测试方法
+
+-- 1) 创建一个`app`网络容器app_container_1, ip地址为192.168.23.1， 在node2上，进入容器，通过nc打开任意端口，以9000
+      为例子，测试web_container_是否能够和其建立连接和通信命令如下
+
+```
+node2机器
+
+node2# docker run --net app --name app_container_1 --ip 192.168.23.1 -td calico-net-test:1.0
+node2# docker-enter app_container_1
+app_container_1# nc -l 9000
+
+node1机器
+node1# docker-enter web_container_1
+web_container_1# nc 192.168.23.1 9000
+
+建立连接以后可以通过终端发生字符，在app_container_1端可以看到接收数据，代表网络是通过的。
+```
+
+-- 2) 通过其他网络访问，应该无法连接，代表配置正确。
+
+- 3. 创建一个mysqldb网络，配置允许app网络访问它内部虚拟及3306端口。可以在 node1 和 node2 进行配置
+```
+node1 | node2# calicoctl profile mysqldb rule remove inbound allow tcp from tag app to ports 3306 
+```
+
+### Profile 高级特性：Tag
+   有同学可能说，在现实环境中，会有多组不同的 APP 都需要访问 DB，如果每个 APP 都在 db 中增加一条规则也很麻烦同时还容易出错。
+   这里我们可以利用Profile 的高级特性 Tag 来简化操作:
+
+- 每个 Profile 默认拥有一个和 Profile 名字相同的 Tag
+- 每个 Profile 可以有多个 Tag，以 List 形式保存
+利用 Tag 我们可以将一条规则适配到指定的一组 Profile 上。
+
+参照上面的例子，我们给所有需要访问 DB 的 APP 的 Profile 都加上 db-users这个Tag, 步骤如下
+
+- Tag: db-users 相当于docker 一个network 
+
+```
+node1 | node2 # docker network create --driver calico --ipam-driver calico db-users
+```
+
+- 然后删除db-users inbound 选项，因为他只作tag用，无需其他允许
+
+```
+node1 | node2 # calicoctl profile db_users rule remove inbound allow from tag db_users
+```
+
+- 将之前的 src_tag: app 替换为 src_tag: db-users。这样所有打了 db-user 这个 Tag 的实例就都能访问数据库了:
+```
+{
+  "inbound_rules": [
+    {
+      "action": "allow", 
+      "src_tag": "mysqldb"
+    }, 
+    {
+      "action": "allow", 
+	  "src_tag": "db-users",
+      "protocol": "tcp", 
+      "dst_ports": [
+        3306
+      ]
+    }
+  ], 
+  "outbound_rules": [
+    {
+      "action": "allow"
+    }
+  ]
+}
+
+node1# calicoctl profile mysqldb rule update < mysqldb-rule.json
+```
 
