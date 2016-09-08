@@ -588,3 +588,50 @@ node1 | node2 # calicoctl profile db_users rule remove inbound allow from tag db
 node1# calicoctl profile mysqldb rule update < mysqldb-rule.json
 ```
 
+## 配置BGP Route Reflector
+
+   上面我们是使用calico 是使用BGP "full node-to-node mesh", calico节点自动在etcd数据库获取节点信息，自动创建和其他calico-node建立BGP peer。
+   这种模型只适合小规模的部署或者所有的Calico-node都在一个网段上。
+   现在屏蔽"full node-to-node mesh"方式，创建`Route Reflector`，所以的Calico-node 只需要和`Route Reflector`连接。
+
+
+   例如环境如下:
+
+   192.168.20.1 node1
+   192.168.20.2 node2
+   192.168.20.3 node3
+
+   192.168.20.4 route_reflector
+
+
+- 1. 关闭"full node-to-node mesh" 模式
+```
+node1# calicoctl bgp node-mesh off
+```  
+
+- 2. 运行BIRD Route Reflector on node1 
+
+```
+node1# docker run --privileged --net=host -d -e IP=192.168.20.1 -e ETCD_AUTHORITY=192.168.20.1:2379 -v /var/log/:/var/log/ calico/routereflector:latest
+```
+
+- 3. 添加Route Reflector到etcd数据库
+```
+curl -L http://192.168.20.1:2379/v2/keys/calico/bgp/v1/rr_v4/192.168.20.1 -XPUT -d value="{\"ip\":\"192.168.20.1\",\"cluster_id\":\"1.0.0.1\"}"
+```
+
+- 4. 每个节点通过calicoctl配置Route Reflectors
+
+-- 1) 获取节点as号(每个节点都一样)
+```
+#calicoctl bgp default-node-as
+64511 
+``` 
+    不同环境返回as num 都不一样，根据这个as num配置第二步。
+
+-- 2) 在所有calico-node上添加BGP peer 
+```
+calicoctl bgp peer add 192.168.20.1 as 64511
+calicoctl bgp peer show
+```
+
