@@ -33,8 +33,8 @@ DNS.2=*.baidu.com   # 可添加多个扩展域名和IP
     创建仓库对应的证书和密钥:
 
 ```
-register# mkdir -p certs
-register# openssl req -newkey rsa:4096 -nodes -sha256 -keyout /root/certs/domain.key -x509 -days 365 -out /root/certs/domain.crt
+registry# mkdir -p certs
+registry# openssl req -newkey rsa:4096 -nodes -sha256 -keyout /root/certs/domain.key -x509 -days 365 -out /root/certs/domain.crt
 Generating a 4096 bit RSA private key
 ..............++
 ..............++
@@ -67,7 +67,7 @@ Email Address []:xxx.yyy@ymail.com
 - 把仓库的容器`/certs` 映射本地`/root/certs`， 用于存放CA证书
 
 ```
- register# docker run --restart=always \
+ registry# docker run --restart=always \
 --name=registry  -e SETTINGS_FLAVOUR=dev \
 -e STORAGE_PATH=/registry-storage \
 -v /var/lib/docker/registry/storage:/registry-storage \
