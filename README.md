@@ -152,7 +152,8 @@
 node1|node2# systemctl restart docker.service
 ```
 ## 配置自动启动calico容器服务
-   Calico 服务container有两个， 分别是calico-node和calico-libnetwork, 都需要配置随系统自动启动
+   Calico 服务container有两个， 分别是calico-node和calico-libnetwork, 如果系统机器重新启动以后，这两个插件的容器
+是不会随docker启动而启动。如果需要配置自动启动，配置步骤如下:
 
    创建服务文件`/usr/lib/systemd/system/calico-node.service`,内容为:
 > \[Unit\]
@@ -272,7 +273,7 @@ node2 # docker exec web_contianer_1 ping 192.168.22.2
 
 ### 路由的实现原理(参考http://h2ex.com/202，宜信云平台专家)
 
-    接下来让我们看一下在上面的 demo中，Calico 是如何让不在一个节点上的两个容器互相通讯的:
+    接下来让我们看一下在上面的 demo 中，Calico 是如何让不在一个节点上的两个容器互相通讯的:
     
 - Calico节点(docker agent)启动后会查询`Etcd`(中心数据库)，和其他 Calico节点使用BGP协议建立连接
 ```
@@ -281,7 +282,7 @@ node2 # docker exec web_contianer_1 ping 192.168.22.2
  tcp   0      0	192.168.20.1:53646      192.168.20.2:179        ESTABLISHED 29535/bird
 ```
 
-- 容器启动的时候，calico作为docker网络驱动劫持dockerAPI对网络进行初始化
+- 容器启动的时候，calico作为docker网络的驱动插件对网络进行初始化
 - 如果没有指定 IP，则查询 Etcd 自动分配一个可用 IP
 - 创建一对veth接口用于容器和主机间通讯，设置好容器内的 IP 后，打开 IP 转发
 - 在主机路由表添加指向此接口的路由
@@ -370,7 +371,7 @@ node1 | node2# calicoctl profile web rule show
 
    规则意思`web`网络container允许接收来自`web`的cantainer发送过来的网络包, 允许向所有网络发送数据, 包括向container主机发送网络包。
 
-   如果选择IPAM自动分配ip地址， 命令如下
+   如果不制定ip地址，IPAM自动分配ip地址， 命令如下
 ```
 node1# docker run --net web --name container -tid centos
 ```
@@ -384,7 +385,6 @@ node1# docker run --net web --name container -tid centos
    我们需要创建一个docker image 带有nc`网络瑞士军刀`， 进行实验。 Dockerfile 如下
 ```
 FROM centos
-MAINTAINER hyj
 ENV LANG en_US.UTF-8
 
 RUN yum install -y nc telnet
@@ -637,3 +637,4 @@ calicoctl bgp peer show
 
 
 - [集成到mesos marathon 集群](mesos-marathon/README.md)
+- [配置私有仓库registry](registry/README.md)
