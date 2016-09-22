@@ -617,7 +617,7 @@ node1# docker run --privileged --net=host -d -e IP=192.168.20.1 -e ETCD_AUTHORIT
 
 - 3. 添加Route Reflector到etcd数据库
 ```
-curl -L http://192.168.20.1:2379/v2/keys/calico/bgp/v1/rr_v4/192.168.20.1 -XPUT -d value="{\"ip\":\"192.168.20.1\",\"cluster_id\":\"1.0.0.1\"}"
+curl -L http://192.168.20.1:2379/v2/keys/calico/bgp/v1/rr_v4/192.168.20.4 -XPUT -d value="{\"ip\":\"192.168.20.4\",\"cluster_id\":\"1.0.0.1\"}"
 ```
 
 - 4. 每个节点通过calicoctl配置Route Reflectors
@@ -631,10 +631,11 @@ curl -L http://192.168.20.1:2379/v2/keys/calico/bgp/v1/rr_v4/192.168.20.1 -XPUT 
 
 -- 2) 在所有calico-node上添加BGP peer 
 ```
-calicoctl bgp peer add 192.168.20.1 as 64511
+calicoctl bgp peer add 192.168.20.4 as 64511
 calicoctl bgp peer show
 ```
 
 
 - [集成到mesos marathon 集群](mesos-marathon/README.md)
 - [配置私有仓库registry](registry/README.md)
+- [配置VMWare harbor](harbor/README.md)
