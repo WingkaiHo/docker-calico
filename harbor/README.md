@@ -321,3 +321,4 @@ docker-client # cp harbordomain.crt /etc/docker/certs.d/192.168.20.10:5000/
 
    每个需要访问仓库docker机器都需要拷贝CA证书。
 
+- [配置VMWare harbor仓库异地备份](configure_https_registry_replication.md)
