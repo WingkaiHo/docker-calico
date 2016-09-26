@@ -311,14 +311,22 @@ ssl_certificate_key /etc/nginx/cert/harbordomain.key;
 
 
 #### 1.5.5 docker client 配置证书
-   
-    CA证书可以把他存放在docker目录下`/etc/docker/certs.d/192.168.20.10/`
-操作步骤如下：
+   CA证书发送各个docker client，把CA证书放到指定的地方，操作步骤如下:
+centos docker 
 ```
 docker-client # mkdir -p /etc/docker/certs.d/192.168.20.10:5000/
-docker-client # cp harbordomain.crt /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /etc/pki/ca-trust/source/anchors/192.168.20.10:5000.crt
+docker-client # cp domain.crt  update-ca-trust
 ```
 
+ubuntu docker 
+```
+docker-client # mkdir -p /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /usr/local/share/ca-certificates/192.168.20.10:5000.crt
+docker-client # update-ca-certificates
+```
    每个需要访问仓库docker机器都需要拷贝CA证书。
 
 - [配置VMWare harbor仓库异地备份](configure_https_registry_replication.md)

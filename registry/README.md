@@ -8,9 +8,7 @@
 
 #### 1.1.1 内外单域名/单IP SSL认证证书
     在内网是使用IP， 如果有内部DNS通过域名访问。 以ip地址为访问方式, 配置文件`/etc/pki/tls/openssl.cnf`
-
 ```
-//添加
 [ v3_ca ]  
 subjectAltName = IP:192.168.20.10   //是register所在机器的IP
 ```
@@ -38,7 +36,7 @@ registry# openssl req -newkey rsa:4096 -nodes -sha256 -keyout /root/certs/domain
 Generating a 4096 bit RSA private key
 ..............++
 ..............++
-writing new private key to 'certs/domain.key'
+writing new private key to certs/domain.key
 -----
 You are about to be asked to enter information that will be incorporated
 into your certificate request.
@@ -80,15 +78,25 @@ registry:2
 
 ### 1.4 拷贝证书
  
-   CA证书可以把他存放在docker目录下`/etc/docker/certs.d/192.168.20.10:5000/`， 也可以CA信息打印到文件`/etc/ssl/certs/ca-certificates.crt`，
-操作步骤如下：
+   CA证书发送各个docker client，把CA证书放到指定的地方，操作步骤如下:
+
+centos docker 
 ```
 docker-client # mkdir -p /etc/docker/certs.d/192.168.20.10:5000/
 docker-client # cp domain.crt /etc/docker/certs.d/192.168.20.10:5000/
-docker-client # cat domain.crt | sudo tee -a /etc/ssl/certs/ca-certificates.crt
+docker-client # cp domain.crt /etc/pki/ca-trust/source/anchors/192.168.20.10:5000.crt
+docker-client # cp domain.crt  update-ca-trust
 ```
 
-   每个需要访问仓库docker机器都需要拷贝CA证书。
+ubuntu docker 
+```
+docker-client # mkdir -p /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /etc/docker/certs.d/192.168.20.10:5000/
+docker-client # cp domain.crt /usr/local/share/ca-certificates/192.168.20.10:5000.crt
+docker-client # update-ca-certificates
+```
+
+每个需要访问仓库docker机器都需要拷贝CA证书。
 
 `domain.crt`是刚才通过`openssl`生成的ca证书文件.
 
@@ -107,5 +115,3 @@ c12ecfd4861d: Pushed
 ```
 
 可以看到成功，表明仓库配置正确
-
-
