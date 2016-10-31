@@ -17,9 +17,17 @@ subjectAltName = IP:192.168.20.10   //是register所在机器的IP
     默认的 OpenSSL 生成的签名请求只适用于生成时填写的域名，即 `Common Name `填的是哪个域名，证书就只能应用于哪个域名，但是一般内网都是以 IP 方式部署，所以需要添加 SAN(Subject Alternative Name) 扩展信息，以支持多域名和IP
 
 ```
+[req]
+...
+req_extensions = v3_req
+
 [ v3_req ]
 # 修改 subjectAltName
 subjectAltName = @alt_names 
+# Extensions to add to a certificate request
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+
 [ alt_names ]
 # 此节点[ alt_names ]为新增的，内容如下
 IP.1=192.168.20.10   # 扩展IP(私服所在服务器IP)
