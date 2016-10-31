@@ -65,10 +65,10 @@ Email Address []:xxx.yyy@ymail.com
 - 把仓库的容器`/certs` 映射本地`/root/certs`， 用于存放CA证书
 
 ```
- registry# docker run --restart=always \
+registry# 
+docker run --restart=always \
 --name=registry  -e SETTINGS_FLAVOUR=dev \
--e STORAGE_PATH=/registry-storage \
--v /var/lib/docker/registry/storage:/registry-storage \
+-v /var/lib/docker/registry/storage:/var/lib/registry/docker/ \
 -u root -p 5000:5000 \
 -v /root/certs:/certs \
 -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
