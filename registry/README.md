@@ -16,53 +16,75 @@ subjectAltName = IP:192.168.20.10   //是register所在机器的IP
 #### 1.1.2 多IP和域名
     默认的 OpenSSL 生成的签名请求只适用于生成时填写的域名，即 `Common Name `填的是哪个域名，证书就只能应用于哪个域名，但是一般内网都是以 IP 方式部署，所以需要添加 SAN(Subject Alternative Name) 扩展信息，以支持多域名和IP
 
+
+```
+registry# mkdir -p certs 
+
+拷贝本目录下openssl.cnf 到你的certs目录
+```
+	
 ```
 [req]
 ...
 req_extensions = v3_req
 
 [ v3_req ]
-# 修改 subjectAltName
-subjectAltName = @alt_names 
 # Extensions to add to a certificate request
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+# 修改 subjectAltName
+subjectAltName = @alt_names 
 
 [ alt_names ]
-# 此节点[ alt_names ]为新增的，内容如下
-IP.1=192.168.20.10   # 扩展IP(私服所在服务器IP)
-DNS.1=*.xran.me     # 扩展域名(一般用于公网这里做测试)
-DNS.2=*.baidu.com   # 可添加多个扩展域名和IP
+DNS.1=hub.yourdomain1.com
+DNS.2=hub.yourdomain2.com
+DNS.3=hub.yourdomain3.com
 ```
 
 ### 1.2 创建CA证书和KEY文件
     创建仓库对应的证书和密钥:
 
 ```
-registry# mkdir -p certs
-registry# openssl req -newkey rsa:4096 -nodes -sha256 -keyout /root/certs/domain.key -x509 -days 365 -out /root/certs/domain.crt
-Generating a 4096 bit RSA private key
-..............++
-..............++
-writing new private key to certs/domain.key
------
-You are about to be asked to enter information that will be incorporated
-into your certificate request.
-What you are about to enter is what is called a Distinguished Name or a DN.
-There are quite a few fields but you can leave some blank
-For some fields there will be a default value,
-If you enter '.', the field will be left blank.
------
-Country Name (2 letter code) [XX]:CN
-State or Province Name (full name) []:GuangDong
-Locality Name (eg, city) [Default City]:GuangZhou
-Organization Name (eg, company) [Default Company Ltd]:HongSuan
-Organizational Unit Name (eg, section) []:IT
-Common Name (eg, your name or your server's hostname) []:192.168.20.10:5000
-Email Address []:xxx.yyy@ymail.com
+registry# cd cert
+registry# mkdir -p CA/{certs,crl,newcerts,private}
+registry# touch CA/index.txt
+registry# echo 00 > CA/serial
 
+1.生成ca.key并自签署
+registry# openssl req -new -x509 -days 3650 -keyout ca.key -out ca.crt -config openssl.cnf
+
+2.生成server.key(名字不重要)
+registry# openssl genrsa -out domain.key 2048
+
+3.生成证书签名请求
+openssl req -new -key server.key -out server.csr -config openssl.cnf
+Common Name 这个写主要域名就好了(注意：这个域名也要在openssl.cnf的DNS.x里)
+
+4.查看请求文件
+openssl req -text -noout -in server.csr 
+应该可以看到这些内容：
+    Certificate Request:
+    Data:
+    Version: 0 (0x0)
+    Subject: C=US, ST=Texas, L=Fort Worth, O=My Company, OU=My Department,             CN=server.example
+    Subject Public Key Info: Public Key Algorithm: rsaEncryption RSA Public Key: (2048 bit)
+    Modulus (2048 bit): blahblahblah
+    Exponent: 65537 (0x10001)
+    Attributes:
+    Requested Extensions: X509v3
+    Basic Constraints: CA:FALSE
+    X509v3 Key Usage: Digital Signature, Non Repudiation, Key Encipherment
+    X509v3 Subject Alternative Name: DNS:hub.yourdomain1.com, DNS:hub.yourdomain2.com, DNS:hub.yourdomain3.com
+    Signature Algorithm: sha1WithRSAEncryption
+
+5.使用自签署的CA，签署server.scr
+openssl ca -in server.csr -out server.crt -cert ca.crt -keyfile ca.key -extensions v3_req -config openssl.cnf
+输入第一步设置的密码，一直按y就可以了
 ```
-提示输入时按照上面的填写，特别是192.168.20.10:5000这一行，其他随意。
+
+server.crt server.key就是registry服务器中使用的文件,可以把他们修改domain.crt, domain.key给仓库使用
+ca.crt 就是给docker 用户使用的公钥。
+
 
 ### 1.3 创建Register 服务
 
