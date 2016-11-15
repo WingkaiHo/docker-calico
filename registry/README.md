@@ -54,7 +54,7 @@ registry# echo 00 > CA/serial
 registry# openssl req -new -x509 -days 3650 -keyout ca.key -out ca.crt -config openssl.cnf
 
 2.生成server.key(名字不重要)
-registry# openssl genrsa -out domain.key 2048
+registry# openssl genrsa -out server.key 2048
 
 3.生成证书签名请求
 openssl req -new -key server.key -out server.csr -config openssl.cnf
@@ -80,10 +80,9 @@ openssl req -text -noout -in server.csr
 5.使用自签署的CA，签署server.scr
 openssl ca -in server.csr -out server.crt -cert ca.crt -keyfile ca.key -extensions v3_req -config openssl.cnf
 输入第一步设置的密码，一直按y就可以了
-```
 
-server.crt server.key就是registry服务器中使用的文件,可以把他们修改domain.crt, domain.key给仓库使用
-ca.crt 就是给docker 用户使用的公钥。
+
+server.crt server.key就是registry服务器中使用的文件, ca.crt 就是给docker 用户使用的公钥。
 
 
 ### 1.3 创建Register 服务
