@@ -317,7 +317,7 @@ centos docker
 docker-client # mkdir -p /etc/docker/certs.d/192.168.20.10:5000/
 docker-client # cp domain.crt /etc/docker/certs.d/192.168.20.10:5000/
 docker-client # cp domain.crt /etc/pki/ca-trust/source/anchors/192.168.20.10:5000.crt
-docker-client # cp domain.crt  update-ca-trust
+docker-client # update-ca-trust
 ```
 
 ubuntu docker 
