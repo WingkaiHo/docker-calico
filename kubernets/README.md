@@ -98,12 +98,12 @@ KUBELET_ARGS="--cluster-dns=192.168.21.2 --cluster-domain=cluster.local"
 ### 2.1.1 创建rbd镜像
     例如下面创建的是100GB镜像,名为redis-volume
 ```
-rbd create redis-volume --size 100
+rbd create redis-volume --size 100G
 ```
 
 ### 2.1.2 把镜像格式化为xfs文件系 
 
-   加载rbd驱动模块
+   加载rbd驱动模块, 注意如果格式ext4,挂载后自动出现lost-found目录,导致mysql的需要空目录初始化程序无法使用.
 ```
 modprobe rbd
 lsmod | grep rbd
@@ -133,7 +133,7 @@ id pool image		   snap device
 
 ```
 mkfs.xfs /dev/rbd0 
-rbd unmap /dev/rbd1
+rbd unmap /dev/rbd0
 ```
 
 ### 2.1.3 创建挂载rbd的用户的secret
@@ -199,3 +199,113 @@ kubectl --namespace default create -f redis.yml
 ``` 
 
    namespace需要和ceph-client-admin-keyring一致, 否者无法获取到secret.
+
+
+### 2.2 kubernets 添加监控平台
+
+#### 2.2.1 heapster controller的定义文件如下:
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: heapster-v1.2.0
+  namespace: kube-system
+  labels:
+    k8s-app: heapster
+    kubernetes.io/cluster-service: "true"
+    version: v1.2.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: heapster
+      version: v1.2.0
+  template:
+    metadata:
+      labels:
+        k8s-app: heapster
+        version: v1.2.0
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations:
+'[{"key":"CriticalAddonsOnly", "operator":"Exists"}]'
+    spec:
+      containers:
+        - image: gcr.io/google_containers/heapster:v1.2.0
+          name: heapster
+          livenessProbe:
+            httpGet:
+              path: /healthz
+            - --source=kubernetes.summary_api:''
+        - image: gcr.io/google_containers/addon-resizer:1.6
+          name: heapster-nanny
+          resources:
+            limits:
+              cpu: 50m
+              memory: 92160Ki
+            requests:
+              cpu: 50m
+              memory: 92160Ki
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /pod_nanny
+            - --cpu=80m
+            - --extra-cpu=0.5m
+            - --memory=140Mi
+            - --extra-memory=4Mi
+            - --threshold=5
+            - --deployment=heapster-v1.2.0
+            - --container=heapster
+            - --container=heapster
+            - --poll-period=300000
+            - --estimator=exponential
+```
+####2.2.2 heapster-service的定义文件如下:
+
+```
+kind: Service
+apiVersion: v1
+metadata:
+  name: heapster
+  namespace: kube-system
+  labels:
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "Heapster"
+spec:
+  ports:
+    - port: 80
+      targetPort: 8082
+  selector:
+    k8s-app: heapster
+```
+创建controller及暴露服务:
+
+```
+
+### 2.2.3创建controller及暴露服务:
+
+```
+$ kubectl create -f heapster-controller.yaml
+$ kubectl create -f heapster-service.yaml
+```
+查看集群信息:
+
+```
+$ kubectl cluster-info
+Kubernetes master is running at https://192.168.10.223
+Heapster is running at
+https://192.168.10.223/api/v1/proxy/namespaces/kube-system/services/heapster
+KubeDNS is running at
+https://192.168.10.223/api/v1/proxy/namespaces/kube-system/services/kube-dns
+```
+可以看到Heapster已经启动，而在kubernetes dashboard上此刻就可以看到监控信息了.
+
