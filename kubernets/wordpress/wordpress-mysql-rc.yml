@@ -1,0 +1,40 @@
+kind: ReplicationController
+apiVersion: v1
+metadata:
+  name: wordpress-mysql
+  labels:
+    name: wordpress-mysql
+spec:
+  replicas: 1
+  selector:
+    name: wordpress-mysql
+  template:
+    metadata:
+      labels:
+        name: wordpress-mysql
+    spec:
+      containers:
+      - name: wordpress-mysql
+        image: mysql:5.7
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: wordpress
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+          - name: mysql-persistent-storage
+            mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        rbd:
+          monitors:
+             - 192.168.10.223:6789
+          pool: rbd
+          image: wordpress-mysql
+          user: admin
+          secretRef:
+            name: ceph-client-admin-keyring
+          fsType: xfs
+          readOnly: false
