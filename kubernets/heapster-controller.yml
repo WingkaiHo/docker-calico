@@ -1,0 +1,64 @@
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: heapster-v1.2.0
+  namespace: kube-system
+  labels:
+    k8s-app: heapster
+    kubernetes.io/cluster-service: "true"
+    version: v1.2.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: heapster
+      version: v1.2.0
+  template:
+    metadata:
+      labels:
+        k8s-app: heapster
+        version: v1.2.0
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ''
+        scheduler.alpha.kubernetes.io/tolerations:
+'[{"key":"CriticalAddonsOnly", "operator":"Exists"}]'
+    spec:
+      containers:
+        - image: gcr.io/google_containers/heapster:v1.2.0
+          name: heapster
+          livenessProbe:
+            httpGet:
+              path: /healthz
+            - --source=kubernetes:http://192.168.10.223:8080?inClusterConfig=false&useServiceAccount=true&auth=
+            - --sink="graphite:tcp://graphite.kube-system.svc.cluster.local:2003?prefix=kubernetes."
+        - image: gcr.io/google_containers/addon-resizer:1.6
+          name: heapster-nanny
+          resources:
+            limits:
+              cpu: 50m
+              memory: 92160Ki
+            requests:
+              cpu: 50m
+              memory: 92160Ki
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /pod_nanny
+            - --cpu=80m
+            - --extra-cpu=0.5m
+            - --memory=140Mi
+            - --extra-memory=4Mi
+            - --threshold=5
+            - --deployment=heapster-v1.2.0
+            - --container=heapster
+            - --container=heapster
+            - --poll-period=300000
+            - --estimator=exponential
