@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  namespace: kube-system
+  name: graphite
+  labels:
+    name: graphite
+spec:
+  replicas: 1
+  selector:
+    name: graphite
+  template:
+    metadata:
+      labels:
+        name: graphite
+    spec:
+      containers:
+      - name: graphite
+        image: sitespeedio/graphite:latest
+        ports:
+        - name: graphite
+          containerPort: 2003
+        - name: pickle
+          containerPort: 2004
+        - name: api
+          containerPort: 80
+        volumeMounts:
+        - name: configvolume
+          mountPath: /opt/graphite/conf/storage-schemas.conf
+          subPath: storage-schemas.conf
+      volumes:
+        - name: configvolume
+          configMap:
+            name: graphite-storage-schemas
