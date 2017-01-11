@@ -237,7 +237,8 @@ spec:
           livenessProbe:
             httpGet:
               path: /healthz
-            - --source=kubernetes.summary_api:''
+            - --source=kubernetes:http://192.168.10.223:8080?inClusterConfig=false&useServiceAccount=true&auth=
+            - --sink="graphite:tcp://graphite.kube-system.svc.cluster.local:2003?prefix=kubernetes."
         - image: gcr.io/google_containers/addon-resizer:1.6
           name: heapster-nanny
           resources:
@@ -309,3 +310,4 @@ https://192.168.10.223/api/v1/proxy/namespaces/kube-system/services/kube-dns
 ```
 可以看到Heapster已经启动，而在kubernetes dashboard上此刻就可以看到监控信息了.
 
+- [kubernetes monitoring: heapster+graphite+grafana](registry/README.md)
