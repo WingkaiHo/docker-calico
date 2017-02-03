@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zabbix_export>
+    <version>2.0</version>
+    <date>2017-01-12T08:06:04Z</date>
+    <groups>
+        <group>
+            <name>kubernetes</name>
+        </group>
+    </groups>
+    <templates>
+        <template>
+            <template>Template Kubernetes-agent</template>
+            <name>Template Kubernetes-agent</name>
+            <description/>
+            <groups>
+                <group>
+                    <name>kubernetes</name>
+                </group>
+            </groups>
+            <applications>
+                <application>
+                    <name>kube-proxy</name>
+                </application>
+                <application>
+                    <name>kubelet</name>
+                </application>
+            </applications>
+            <items>
+                <item>
+                    <name>kube-proxy</name>
+                    <type>7</type>
+                    <snmp_community/>
+                    <multiplier>0</multiplier>
+                    <snmp_oid/>
+                    <key>web.page.get[127.0.0.1,/healthz,10249]</key>
+                    <delay>180</delay>
+                    <history>1</history>
+                    <trends>365</trends>
+                    <status>0</status>
+                    <value_type>4</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <delta>0</delta>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <formula>1</formula>
+                    <delay_flex/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <data_type>0</data_type>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description>The status of service kube-proxy</description>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>kube-proxy</name>
+                        </application>
+                    </applications>
+                    <valuemap/>
+                    <logtimefmt/>
+                </item>
+                <item>
+                    <name>kubelet</name>
+                    <type>7</type>
+                    <snmp_community/>
+                    <multiplier>0</multiplier>
+                    <snmp_oid/>
+                    <key>web.page.get[127.0.0.1,/healthz,10248]</key>
+                    <delay>180</delay>
+                    <history>1</history>
+                    <trends>365</trends>
+                    <status>0</status>
+                    <value_type>4</value_type>
+                    <allowed_hosts/>
+                    <units/>
+                    <delta>0</delta>
+                    <snmpv3_contextname/>
+                    <snmpv3_securityname/>
+                    <snmpv3_securitylevel>0</snmpv3_securitylevel>
+                    <snmpv3_authprotocol>0</snmpv3_authprotocol>
+                    <snmpv3_authpassphrase/>
+                    <snmpv3_privprotocol>0</snmpv3_privprotocol>
+                    <snmpv3_privpassphrase/>
+                    <formula>1</formula>
+                    <delay_flex/>
+                    <params/>
+                    <ipmi_sensor/>
+                    <data_type>0</data_type>
+                    <authtype>0</authtype>
+                    <username/>
+                    <password/>
+                    <publickey/>
+                    <privatekey/>
+                    <port/>
+                    <description>The status of service kubelet</description>
+                    <inventory_link>0</inventory_link>
+                    <applications>
+                        <application>
+                            <name>kubelet</name>
+                        </application>
+                    </applications>
+                    <valuemap/>
+                    <logtimefmt/>
+                </item>
+            </items>
+            <discovery_rules/>
+            <macros/>
+            <templates/>
+            <screens/>
+        </template>
+    </templates>
+    <triggers>
+        <trigger>
+            <expression>{Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10249].str(ok)}=0 and {Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10249].str(EOF)}=0</expression>
+            <name>Service kube-proxy abnormal</name>
+            <url/>
+            <status>0</status>
+            <priority>3</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10249].str(EOF)}=1</expression>
+            <name>Service kube-proxy is down</name>
+            <url/>
+            <status>0</status>
+            <priority>4</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10248].str(ok)}=0 and {Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10248].str(EOF)}=0</expression>
+            <name>Service kubelet abnormal</name>
+            <url/>
+            <status>0</status>
+            <priority>3</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+        <trigger>
+            <expression>{Template Kubernetes-agent:web.page.get[127.0.0.1,/healthz,10248].str(EOF)}=1</expression>
+            <name>Service kubelet is down</name>
+            <url/>
+            <status>0</status>
+            <priority>4</priority>
+            <description/>
+            <type>0</type>
+            <dependencies/>
+        </trigger>
+    </triggers>
+</zabbix_export>
