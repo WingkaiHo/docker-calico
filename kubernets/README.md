@@ -280,7 +280,8 @@ spec:
             - --poll-period=300000
             - --estimator=exponential
 ```
-####2.2.2 heapster-service的定义文件如下:
+
+### 2.2.2 heapster-service的定义文件如下:
 
 ```
 kind: Service
@@ -298,9 +299,7 @@ spec:
   selector:
     k8s-app: heapster
 ```
-创建controller及暴露服务:
 
-```
 
 ### 2.2.3创建controller及暴露服务:
 
@@ -533,7 +532,7 @@ Waiting for pod advanced-policy-demo/access-472357175-y0m47 to be running, statu
 
 If you don't see a command prompt, try pressing enter.
 
-/ # wget -q --timeout=5 nginx -O -
+$ wget -q --timeout=5 nginx -O -
 ...
 ```
-- [kubernetes monitoring: heapster+graphite+grafana](registry/README.md)
+- [kubernetes monitoring: heapster+graphite+grafana](cluster-monitoring/README.md)
