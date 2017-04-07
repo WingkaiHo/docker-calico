@@ -151,6 +151,7 @@ rbd unmap /dev/rbd0
 ```
 	# awk '/key/{print $3}' /etc/ceph/ceph.client.admin.keyring  | base64
 QVFCWll0MVZvRddf5R2hBQUlzMm92VGMvdmMyaFzaWjl2dFhsS1E9PQo=
+```
 
    编写ceph-secret.yml 文件
 
