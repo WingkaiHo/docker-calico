@@ -200,6 +200,12 @@ wget http://downloads.mesosphere.com/marathon/v1.1.1/marathon-1.1.1.tgz
       "HAPROXY_GROUP": "external",
       "HAPROXY_0_VHOST": "spring.acme.org"
     }
-}
+Mesos 和 Kubernetes 的技术选型}
 ```
 
+
+##4 Mesos 和 Kubernetes 的技术选型
+
+ - 如果是刚刚引入集群技术，那 Kubernetes 是一个很棒的开始。它可以用最快的、最简单的、最轻量级的方式来解决你的问题,并帮助你进行面向集群的开发。
+ - 如果拥有已存在的工作任务(Hadoop、Spark、Kafka 等)，Mesos 提供了一个将不同工作任务相互交错的框架，然后还可以加入一些新的东西，比如 Kubernetes 应用。 
+ - 如果你需要强大的集群管理及调度功能而 Kubernetes 还没实现，那 Mesos 是最佳的选择，毕竟它已经成熟。
