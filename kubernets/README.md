@@ -15,6 +15,8 @@
 	git clone https://github.com/kubernetes/kubernetes.git
 ```
 
+   kubnernetes 镜像存放在gcr.io, 如果不能翻墙可以在`docker hub`上在, https://hub.docker.com/r/googlecontainer/
+
 ### 1.2 输入集群基本信息
 
 ### 1.2.1 设置环境变量
