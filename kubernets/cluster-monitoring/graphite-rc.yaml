@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: graphite
-        image: sitespeedio/graphite:latest
+        image: hopsoft/graphite-statsd:latest
         ports:
         - name: graphite
           containerPort: 2003
@@ -24,6 +24,17 @@ spec:
           containerPort: 2004
         - name: api
           containerPort: 80
+        livenessProbe:
+          initialDelaySeconds: 100
+          timeoutSeconds: 10
+          httpGet:
+            path: /
+            port: 80
+        livenessProbe:
+          initialDelaySeconds: 100
+          timeoutSeconds: 10
+          tcpSocket:
+            port: 2003
         volumeMounts:
         - name: configvolume
           mountPath: /opt/graphite/conf/storage-schemas.conf
