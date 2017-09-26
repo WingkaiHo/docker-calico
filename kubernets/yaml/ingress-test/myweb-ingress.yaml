@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: myweb-ingress
+  namespace: default
+spec:
+  rules:
+  - host: myweb.test
+    http:
+      paths:
+      - backend:
+          serviceName: myweb
+          servicePort: 8080

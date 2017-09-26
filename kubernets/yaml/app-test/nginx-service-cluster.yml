@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service1
+  labels:
+    dcos-service: app1-service1
+    dcos-app: app1
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      # TCP/UDP default TCP
+      protocol: TCP
+  selector:
+    dcos-service: app1-service1
+    dcos-app: app1

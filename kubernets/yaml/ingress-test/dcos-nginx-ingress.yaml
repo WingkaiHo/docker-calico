@@ -1,0 +1,12 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dcos-nginx-ingress
+spec:
+  rules:
+  - host: dcos-app1.test
+    http:
+      paths:
+      - backend:
+          serviceName: app1-service1
+          servicePort: 80

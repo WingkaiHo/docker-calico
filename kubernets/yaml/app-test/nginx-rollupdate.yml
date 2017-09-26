@@ -1,0 +1,39 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 2 # tells deployment to run 2 pods matching the template
+  #is an optional field that specifies the number of old ReplicaSets to retain to allow rollback. Its ideal value depends on the frequency and stability of new Deployments
+  revisionHistoryLimit: 10
+  #is an optional field that specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      #  is an optional field that specifies the maximum number of Pods that can be created over the desired number of Pods
+      maxSurge: 30%
+      #is an optional field that specifies the maximum number of Pods that can be unavailable during the update process
+      maxUnavailable: 10%
+  template: # create pods using pod definition in this template
+    metadata:
+      # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
+      # generated from the deployment name
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: 172.18.2.103/dcos/nginx:1.1
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 0.05
+            memory: 30Mi
+          requests:
+            cpu: 0.05
+            memory: 30Mi
+      nodeSelector:
+        cluster: cluster1
+

@@ -1,0 +1,81 @@
+piVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: 2017-09-25T06:57:58Z
+    generation: 1
+    labels:
+      dcos-app: app1
+      dcos-service: app1-service1
+    name: app1-service1
+    namespace: default
+    resourceVersion: "1516587"
+    selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/app1-service1
+    uid: dd33fea3-a1be-11e7-819f-005056b013a9
+  spec:
+    minReadySeconds: 10
+    replicas: 2
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        dcos-app: app1
+        dcos-service: app1-service1
+    strategy:
+      rollingUpdate:
+        maxSurge: 30%
+        maxUnavailable: 10%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          dcos-app: app1
+          dcos-service: app1-service1
+      spec:
+        containers:
+        - image: 172.18.2.103/dcos/nginx:1.1
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          name: app1-service1
+          ports:
+          - containerPort: 80
+            protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              memory: 30Mi
+            requests:
+              cpu: 50m
+              memory: 30Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          cluster: cluster1
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+  status:
+    availableReplicas: 2
+    conditions:
+    - lastTransitionTime: 2017-09-25T06:58:12Z
+      lastUpdateTime: 2017-09-25T06:58:12Z
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: Available
+    observedGeneration: 1
+    readyReplicas: 2
+    replicas: 2
+    updatedReplicas: 2
