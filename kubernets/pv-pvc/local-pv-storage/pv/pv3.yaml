@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: example-local-pv
+  annotations:
+    volume.alpha.kubernetes.io/node-affinity: > 
+      {
+         "requiredDuringSchedulingIgnoredDuringExecution": {
+           "nodeSelectorTerms": [
+            { "matchExpressions": [
+               { "key": "kubernetes.io/hostname",
+                 "operator": "In",
+                 "values": ["192.168.165.212"]
+               }
+           ]}
+         ]}
+      }
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-storage
+  local:
+    path: /root/k8s-local-pv/edd33f70-c8b5-4d4b-8e0d-e19def797ee0
+
