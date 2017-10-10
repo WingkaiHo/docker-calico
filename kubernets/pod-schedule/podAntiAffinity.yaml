@@ -1,0 +1,62 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: app1-service3
+  labels:
+    dcos-service: app1-service3
+    dcos-app: app1             
+spec:
+  replicas: 4 # tells deployment to run 2 pods matching the template
+  #is an optional field that specifies the number of old ReplicaSets to retain to allow rollback. Its ideal value depends on the frequency and stability of new Deployments
+  revisionHistoryLimit: 10
+  #is an optional field that specifies the minimum number of seconds for which a newly created Pod should be ready without any of its containers crashing
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      #  is an optional field that specifies the maximum number of Pods that can be created over the desired number of Pods
+      maxSurge: 30%
+      #is an optional field that specifies the maximum number of Pods that can be unavailable during the update process
+      maxUnavailable: 10%
+  template: # create pods using pod definition in this template
+    metadata:
+      # unlike pod-nginx.yaml, the name is not included in the meta data as a unique name is
+      # generated from the deployment name 
+      # 必须和Deployment metadata配置一致
+      labels:
+        dcos-service: app1-service3
+        dcos-app: app1
+    spec:
+      affinity:
+       podAntiAffinity:
+         requiredDuringSchedulingIgnoredDuringExecution:
+         - labelSelector:
+             matchExpressions:
+             - key: dcos-service 
+               operator: In
+               values:
+               - app1-service3
+           topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: nginx
+        image: 172.18.2.103/dcos/nginx:1.1
+        ports:
+        - containerPort: 80
+        # defines the health checking
+        livenessProbe:
+        # an http probe
+          httpGet:
+            path: /
+            port: 80
+          # length of time to wait for a pod to initialize
+          # after pod startup, before applying health checking
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 0.05
+            memory: 30Mi
+          requests:
+            cpu: 0.05
+            memory: 30Mi
+
